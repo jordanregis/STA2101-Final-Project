@@ -1,0 +1,690 @@
+---
+title: "Untitled"
+author: "Timothy Jordan Regis"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+
+```{r}
+source("http://www.utstat.toronto.edu/brunner/Rfunctions/rmvn.txt")
+```
+
+```{r}
+N <- 1000
+# Define the Fixed Parameters
+alpha <- c(1, 1)  # latent means
+Phi <- matrix(c(1, 0, 
+                0, 1), nrow = 2)  # latent variances/covariances
+Lambda <- cbind(c(1, 1, 1, 1, 0), 
+                c(0, 0, 0, 0, 1))  # factor loadings
+Theta <- matrix(c(1, 0, 0, 0, 0,
+                  0, 1, 0, 0, 0,
+                  0, 0, 1, 0, 0,
+                  0, 0, 0, 1, 0,
+                  0, 0, 0, 0, 1), nrow = 5)
+a = generate_mvnorm_train(N, alpha, Phi, Lambda, Theta)
+```
+
+
+
+```{r}
+# Model 1-1 Data
+N = 1000
+phi = 0.25
+
+psi = 1
+
+beta = 1.5
+
+gamma = 1
+
+err5 = 0.1
+
+lambda = matrix(c(2, 3, 4, 1), nrow = 4)
+
+ex_mean = c(0, 0, 0, 0)
+ex_cov = matrix(c(0.2, 0, 0, 0,
+                  0, 0.2, 0, 0,
+                  0, 0, 0.2, 0,
+                  0, 0, 0, 0.2
+                 ), nrow = 4)
+
+
+
+
+x = matrix(rnorm(N, 0, sqrt(phi)))
+
+epsilon = rnorm(N, 0, psi)
+
+ex_mat = rmnorm(N, ex_mean, ex_cov)
+
+# dim(ex_mat)
+# dim(lambda)
+# dim(x)
+#dim(lambda %*% t(x))
+y = beta * x + epsilon
+
+d1_4 = t(lambda %*% t(x)) + ex_mat
+
+d5 = gamma * y + rnorm(N, 0, err5)
+
+m1_data = data.frame(cbind(d1_4, d5)) %>% rename("d1" = X1, "d2" = X2, "d3" = X3, "d4" = X4, "d5" = X5)
+
+#summary(lm(d5 ~ ., m1_data))
+```
+
+```{r}
+elavaan_model1 = '
+  y ~ lambda * x;
+  x =~ beta1 * d1 + beta2 * d2 + beta3 * d3 + 1 * d4;
+  y =~ 1 * d5;
+  
+  y ~~ 1 * y;
+  x ~~ phi * x;
+  
+  d1 ~~ omega * d1; #d1 ~~ 1 * d2; d1 ~~ 1 * d3; d1 ~~ 1 * d4; #d1 ~~ 1 * d5;
+  d2 ~~ omega * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; #d2 ~~ 1 * d5;
+  d3 ~~ omega * d3; #d3 ~~ 1 * d4; #d3 ~~ 1 * d5;
+  d4 ~~ omega * d4; #d4 ~~ d5;
+  d5 ~~ omega2 * d5; 
+'
+
+elavaan_model1_fit = lavaan(elavaan_model1, m1_data, meanstructure = TRUE)
+
+summary(elavaan_model1_fit)
+```
+
+
+
+
+
+
+
+```{r}
+a = matrix(c(1, 2, 3, 4), nrow = 4)
+
+b = matrix(c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+
+a
+b
+a %*% t(b)
+
+t(b) %*% t(a)
+
+```
+
+
+
+
+
+
+
+```{r}
+
+elavaan_simdata_model1 = '
+  y ~ 1 * x1;
+  x1 =~ 1 * d1 + 1 * d2 + 1 * d3 + 1 * d4;
+  y =~ 1 * d5;
+  
+  y ~~ 1 * y;
+  x1 ~~ 2 * x1;
+  
+  d1 ~~ 1 * d1; #d1 ~~ 0.5 * d2; #d1 ~~ 1 * d3; d1 ~~ 1 * d4; d1 ~~ 1 * d5;
+  d2 ~~ 1 * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; d2 ~~ 1 * d5;
+  d3 ~~ 1 * d3; #d3 ~~ 1 * d4; d3 ~~ 1 * d5;
+  d4 ~~ 1 * d4; #d4 ~~ 0.5 * d5;
+  d5 ~~ 1 * d5; 
+'
+elavaan_simdata_model1_df = simulateData(elavaan_simdata_model1, sample.nobs = 1000)
+elavaan_simdata_model1_df_test = simulateData(elavaan_simdata_model1, sample.nobs = 250)
+
+elavaan_model1 = '
+  y ~ 1 * x;
+  x =~ beta1 * d1 + beta2 * d2 + beta3 * d3 + 1 * d4;
+  y =~ gamma * d5;
+  
+  y ~~ 1 * y;
+  x ~~ phi * x;
+  
+  d1 ~~ omega * d1; #d1 ~~ 1 * d2; d1 ~~ 1 * d3; d1 ~~ 1 * d4; #d1 ~~ 1 * d5;
+  d2 ~~ omega * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; #d2 ~~ 1 * d5;
+  d3 ~~ omega * d3; #d3 ~~ 1 * d4; #d3 ~~ 1 * d5;
+  d4 ~~ omega * d4; #d4 ~~ d5;
+  d5 ~~ omega2 * d5; 
+'
+
+elavaan_model1_fit = lavaan(elavaan_model1, m1_data, meanstructure = TRUE)
+
+summary(elavaan_model1_fit)
+
+
+
+
+
+```
+
+
+
+# Model 2
+
+```{r}
+# Model 1-2 Data
+N = 1000
+mu_x = c(0, 0)
+phi = matrix(c(0.25, 0.1,
+               0, 0.25), nrow = 2)
+
+psi = 1
+
+beta = matrix(c(1.5, 1))
+
+gamma = matrix(c(2, 1))
+
+
+en_mean = matrix(c(0, 0))
+en_cov = matrix(c(0.1, 0.05,
+                  0, 0.1), nrow = 2)
+
+lambda = cbind(c(2, 3, 4, 1, 0, 0, 0, 0), 
+                c(0, 0, 0, 0, 2, 3, 4, 1))
+
+ex_mean = c(0, 0, 0, 0, 0, 0, 0, 0)
+ex_cov = matrix(c(0.2, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0.2, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0.2, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0.2, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0.2, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0.2, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0.2, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0.2
+                 ), nrow = 8)
+
+
+
+
+x = matrix(rmnorm(N, mu_x, phi), ncol = 2)
+
+epsilon = rnorm(N, 0, psi)
+
+ex_mat = rmnorm(N, ex_mean, ex_cov)
+
+dim(ex_mat)
+dim(lambda)
+dim(x)
+dim(beta)
+#dim(lambda %*% t(x))
+y = x %*% beta + epsilon
+
+d1_8 = x %*% t(lambda) + ex_mat
+
+#dim(d1_8)
+#head(y)
+#dim(gamma)
+#head(t(gamma %*% t(y)))
+d9_10 = y %*% t(gamma) + rmnorm(N, en_mean, en_cov)
+
+m2_data = data.frame(cbind(d1_8, d9_10)) %>% rename("d1" = X1, "d2" = X2, "d3" = X3, "d4" = X4, "d5" = X5, "d6" = X6, "d7" = X7, "d8" = X8, "d9" = X9, "d10" = X10)
+
+#dim(m2_data)
+summary(lm(cbind(d9, d10) ~ ., m2_data))
+```
+           [,1]        [,2]
+[1,] -0.3040431  0.24494654
+[2,] -0.3035688 -0.04677752
+[3,]  0.8971268 -0.63913178
+[4,]  0.3459090 -0.42896874
+[5,] -0.6962379  0.22337947
+[6,]  0.3557327  0.23068246
+```{r}
+uh = rmnorm(3, mu_x, phi)
+uh
+uh %*% t(lambda)
+matrix(uh, ncol = 2)
+```
+
+
+
+```{r}
+elavaan_model2 = '
+  y ~  lambda * x1 + 1 * x2;
+  x1 =~ beta1 * d1 + beta2 * d2 + beta3 * d3 + 1 * d4;
+  x2 =~ beta5 * d5 + beta6 * d6 + beta7 * d7 + 1 * d8;
+  y =~ gamma * d9 + 1 * d10;
+  
+  y ~~ 1 * y;
+  x1 ~~ phi1 * x1; x1 ~~ phi12 * x2;
+  x2 ~~ phi2 * x2;
+  
+  
+  d1 ~~ omega * d1; #d1 ~~ 1 * d2; d1 ~~ 1 * d3; d1 ~~ 1 * d4; 
+  d2 ~~ omega * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; 
+  d3 ~~ omega * d3; #d3 ~~ 1 * d4; 
+  d4 ~~ omega * d4; 
+  
+  d5 ~~ omega * d5; #d5 ~~ 1 * d6; d5 ~~ 1 * d7; d5 ~~ 1 * d8; 
+  d6 ~~ omega * d6; #d6 ~~ 1 * d7; d6 ~~ 1 * d8; 
+  d7 ~~ omega * d7; #d7 ~~ 1 * d8; 
+  d8 ~~ omega  * d8; 
+  
+  d9 ~~ omega2 * d9;
+  d10 ~~ omega2 * d10
+'
+
+
+elavaan_model2_fit = lavaan(elavaan_model2, m2_data, meanstructure = TRUE)
+
+summary(elavaan_model2_fit)
+```
+
+
+
+
+# Model 2
+
+```{r}
+# Model 1-2 Data
+N = 1000
+mu_x = c(0, 0)
+phi = matrix(c(0.25, 0.5,
+               0, 0.25), nrow = 2)
+
+#psi = 1
+
+#beta = matrix(c(1.5, 1))
+
+gamma = matrix(c(2, 1))
+
+
+en_mean = matrix(c(0, 0))
+en_cov = matrix(c(0.1, 0.2,
+                  0, 0.1), nrow = 2)
+
+lambda = cbind(c(2, 3, 40, 1, 0, 0), 
+                c(0, 0, 0, 0, 2, 1))
+
+ex_mean = c(0, 0, 0, 0, 0, 0)
+ex_cov = matrix(c(0.2, 0.1, 0, 0, 0, 0,
+                  0, 0.2, 0, 0, 0, 0,
+                  0, 0, 0.2, 0, 0, 0,
+                  0, 0, 0, 0.2, 0, 0,
+                  0, 0, 0, 0, 0.2, 0,
+                  0, 0, 0, 0, 0, 0.2
+                 ), nrow = 6)
+
+
+
+
+x = matrix(rmnorm(N, mu_x, phi), ncol = 2)
+
+epsilon = rnorm(N, 0, psi)
+
+ex_mat = rmnorm(N, ex_mean, ex_cov)
+
+dim(ex_mat)
+dim(lambda)
+dim(x)
+dim(beta)
+#dim(lambda %*% t(x))
+#y = x %*% beta + epsilon
+dim(x %*% t(lambda))
+d1_6 = x %*% t(lambda) + ex_mat
+
+#dim(d1_8)
+#head(y)
+#dim(gamma)
+#head(t(gamma %*% t(y)))
+#d9_10 = y %*% t(gamma) + rmnorm(N, en_mean, en_cov)
+
+m3_data = data.frame(d1_6) %>% rename("d1" = X1, "d2" = X2, "d3" = X3, "d4" = X4, "d5" = X5, "d6" = X6)
+
+#dim(m2_data)
+summary(lm(cbind(d5, d6) ~ ., m3_data))
+```
+
+
+```{r}
+elavaan_model3 = '
+  x1 =~ gamma1 * d1 + gamma2 * d2 + gamma3 * d3 + 1 * d4;
+  x2 =~ lambda * d5 + 1 * d6
+  
+  x1 ~~ omega * x1; x1 ~~ omega12 * x2;
+  x2 ~~ omega * x2;
+  
+  
+  d1 ~~ w1 * d1; #d1 ~~ w12 * d2; #d1 ~~ 1 * d3; d1 ~~ 1 * d4; 
+  d2 ~~ w1 * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; 
+  d3 ~~ w1 * d3; #d3 ~~ 1 * d4; 
+  d4 ~~ w1 * d4; 
+  
+  d5 ~~ w2 * d5; #d5 ~~ 1 * d6;
+  d6 ~~ w2 * d6; 
+  
+  # intercepts
+  
+ 
+  
+'
+
+
+elavaan_model3_fit = lavaan(elavaan_model3, m3_data, meanstructure = TRUE)
+
+summary(elavaan_model3_fit)
+
+```
+
+
+
+
+# Part 2 
+
+```{r}
+# Model 1-1 Data
+N = 1000
+phi = 0.25
+
+psi = 1
+
+beta = 2
+
+gamma = 1
+
+err5 = 0.51
+
+lambda = matrix(c(2, 3, 4, 1), nrow = 4)
+
+ex_mean = c(0, 0, 0, 0)
+ex_cov = matrix(c(0.4, 0.12, 0.22, 0,
+                  0, 0.4, 0.1, 0.25,
+                  0, 0, 0.4, 0.2,
+                  0, 0, 0, 0.4
+                 ), nrow = 4)
+
+
+
+
+x = matrix(rnorm(N, 0, sqrt(phi)))
+
+epsilon = rnorm(N, 0, psi)
+
+ex_mat = rmnorm(N, ex_mean, ex_cov)
+
+# dim(ex_mat)
+# dim(lambda)
+# dim(x)
+#dim(lambda %*% t(x))
+y = beta * x + epsilon
+
+d1_4 = t(lambda %*% t(x)) + ex_mat
+
+d5 = gamma * y + rnorm(N, 0, err5)
+
+m21_data = data.frame(cbind(d1_4, d5)) %>% rename("d1" = X1, "d2" = X2, "d3" = X3, "d4" = X4, "d5" = X5)
+
+summary(lm(d5 ~ ., m21_data))
+```
+
+```{r}
+elavaan_model21 = '
+  y ~  lambda * x;
+  x =~ beta1 * d1 + beta2 * d2 + beta3 * d3 + 1 * d4;
+  y =~ 1 * d5;
+  
+  y ~~ 1 * y;
+  x ~~ phi * x;
+  
+  d1 ~~ omega * d1; d1 ~~ omega12 * d2; d1 ~~ omega13 * d3; #d1 ~~ omega14 * d4; #d1 ~~ 0 * d5;
+  d2 ~~ omega * d2; d2 ~~ omega23 * d3; d2 ~~ omega24 * d4; #d2 ~~ 0 * d5;
+  d3 ~~ omega * d3; d3 ~~ omega34 * d4; #d3 ~~ 0 * d5;
+  d4 ~~ omega * d4; #d4 ~~ 0 * d5;
+  d5 ~~ 1 * d5; 
+'
+
+elavaan_model21_fit = lavaan(elavaan_model21, m21_data, meanstructure = TRUE)
+
+summary(elavaan_model21_fit)
+```
+
+
+```{r}
+
+elavaan_simdata_model1 = '
+  y ~ 1 * x1;
+  x1 =~ 1 * d1 + 1 * d2 + 1 * d3 + 1 * d4;
+  y =~ 1 * d5;
+  
+  y ~~ 1 * y;
+  x1 ~~ 2 * x1;
+  
+  d1 ~~ 1 * d1; #d1 ~~ 0.5 * d2; #d1 ~~ 1 * d3; d1 ~~ 1 * d4; d1 ~~ 1 * d5;
+  d2 ~~ 1 * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; d2 ~~ 1 * d5;
+  d3 ~~ 1 * d3; #d3 ~~ 1 * d4; d3 ~~ 1 * d5;
+  d4 ~~ 1 * d4; #d4 ~~ 0.5 * d5;
+  d5 ~~ 1 * d5; 
+'
+elavaan_simdata_model1_df = simulateData(elavaan_simdata_model1, sample.nobs = 1000)
+elavaan_simdata_model1_df_test = simulateData(elavaan_simdata_model1, sample.nobs = 250)
+
+elavaan_model1 = '
+  y ~ 1 * x;
+  x =~ beta1 * d1 + beta2 * d2 + beta3 * d3 + 1 * d4;
+  y =~ gamma * d5;
+  
+  y ~~ 1 * y;
+  x ~~ phi * x;
+  
+  d1 ~~ omega * d1; #d1 ~~ 1 * d2; d1 ~~ 1 * d3; d1 ~~ 1 * d4; #d1 ~~ 1 * d5;
+  d2 ~~ omega * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; #d2 ~~ 1 * d5;
+  d3 ~~ omega * d3; #d3 ~~ 1 * d4; #d3 ~~ 1 * d5;
+  d4 ~~ omega * d4; #d4 ~~ d5;
+  d5 ~~ omega2 * d5; 
+'
+
+elavaan_model1_fit = lavaan(elavaan_model1, m1_data, meanstructure = TRUE)
+
+summary(elavaan_model1_fit)
+
+
+
+
+
+```
+
+
+
+# Model 2
+
+```{r}
+# Model 1-2 Data
+N = 1000
+mu_x = c(0, 0)
+phi = matrix(c(0.25, 0.1,
+               0, 0.25), nrow = 2)
+
+psi = 1
+
+beta = matrix(c(1.5, 1))
+
+gamma = matrix(c(2, 1))
+
+
+en_mean = matrix(c(0, 0))
+en_cov = matrix(c(0.1, 0.05,
+                  0, 0.1), nrow = 2)
+
+lambda = cbind(c(2, 3, 4, 1, 0, 0, 0, 0), 
+                c(0, 0, 0, 0, 2, 3, 4, 1))
+
+ex_mean = c(0, 0, 0, 0, 0, 0, 0, 0)
+ex_cov = matrix(c(0.2, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0.2, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0.2, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0.2, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0.2, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0.2, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0.2, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0.2
+                 ), nrow = 8)
+
+
+
+
+x = matrix(rmnorm(N, mu_x, phi), ncol = 2)
+
+epsilon = rnorm(N, 0, psi)
+
+ex_mat = rmnorm(N, ex_mean, ex_cov)
+
+dim(ex_mat)
+dim(lambda)
+dim(x)
+dim(beta)
+#dim(lambda %*% t(x))
+y = x %*% beta + epsilon
+
+d1_8 = x %*% t(lambda) + ex_mat
+
+#dim(d1_8)
+#head(y)
+#dim(gamma)
+#head(t(gamma %*% t(y)))
+d9_10 = y %*% t(gamma) + rmnorm(N, en_mean, en_cov)
+
+m2_data = data.frame(cbind(d1_8, d9_10)) %>% rename("d1" = X1, "d2" = X2, "d3" = X3, "d4" = X4, "d5" = X5, "d6" = X6, "d7" = X7, "d8" = X8, "d9" = X9, "d10" = X10)
+
+#dim(m2_data)
+summary(lm(cbind(d9, d10) ~ ., m2_data))
+```
+
+
+
+
+```{r}
+elavaan_model22 = '
+  y ~  lambda * x1 + 1 * x2;
+  x1 =~ beta1 * d1 + beta2 * d2 + beta3 * d3 + 1 * d4;
+  x2 =~ beta5 * d5 + beta6 * d6 + beta7 * d7 + 1 * d8;
+  y =~ gamma * d9 + 1 * d10;
+  
+  y ~~ 1 * y;
+  x1 ~~ phi1 * x1; x1 ~~ phi12 * x2;
+  x2 ~~ phi2 * x2;
+  
+  
+  d1 ~~ omega * d1; #d1 ~~ 1 * d2; d1 ~~ 1 * d3; d1 ~~ 1 * d4; 
+  d2 ~~ omega * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; 
+  d3 ~~ omega * d3; #d3 ~~ 1 * d4; 
+  d4 ~~ omega * d4; 
+  
+  d5 ~~ omega * d5; #d5 ~~ 1 * d6; d5 ~~ 1 * d7; d5 ~~ 1 * d8; 
+  d6 ~~ omega * d6; #d6 ~~ 1 * d7; d6 ~~ 1 * d8; 
+  d7 ~~ omega * d7; #d7 ~~ 1 * d8; 
+  d8 ~~ omega  * d8; 
+  
+  d9 ~~ omega2 * d9;
+  d10 ~~ omega2 * d10
+'
+
+
+elavaan_model2_fit = lavaan(elavaan_model2, m2_data, meanstructure = TRUE)
+
+summary(elavaan_model2_fit)
+```
+
+
+
+
+# Model 3
+
+```{r}
+# Model 1-2 Data
+N = 1000
+mu_x = c(0, 0)
+phi = matrix(c(0.25, 0.5,
+               0, 0.25), nrow = 2)
+
+#psi = 1
+
+#beta = matrix(c(1.5, 1))
+
+gamma = matrix(c(2, 1))
+
+
+en_mean = matrix(c(0, 0))
+en_cov = matrix(c(0.1, 0.2,
+                  0, 0.1), nrow = 2)
+
+lambda = cbind(c(2, 3, 40, 1, 0, 0), 
+                c(0, 0, 0, 0, 2, 1))
+
+ex_mean = c(0, 0, 0, 0, 0, 0)
+ex_cov = matrix(c(0.2, 0.1, 0, 0, 0, 0,
+                  0, 0.2, 0, 0, 0, 0,
+                  0, 0, 0.2, 0, 0, 0,
+                  0, 0, 0, 0.2, 0, 0,
+                  0, 0, 0, 0, 0.2, 0,
+                  0, 0, 0, 0, 0, 0.2
+                 ), nrow = 6)
+
+
+
+
+x = matrix(rmnorm(N, mu_x, phi), ncol = 2)
+
+epsilon = rnorm(N, 0, psi)
+
+ex_mat = rmnorm(N, ex_mean, ex_cov)
+
+dim(ex_mat)
+dim(lambda)
+dim(x)
+dim(beta)
+#dim(lambda %*% t(x))
+#y = x %*% beta + epsilon
+dim(x %*% t(lambda))
+d1_6 = x %*% t(lambda) + ex_mat
+
+#dim(d1_8)
+#head(y)
+#dim(gamma)
+#head(t(gamma %*% t(y)))
+#d9_10 = y %*% t(gamma) + rmnorm(N, en_mean, en_cov)
+
+m3_data = data.frame(d1_6) %>% rename("d1" = X1, "d2" = X2, "d3" = X3, "d4" = X4, "d5" = X5, "d6" = X6)
+
+#dim(m2_data)
+summary(lm(cbind(d5, d6) ~ ., m3_data))
+```
+
+
+```{r}
+elavaan_model3 = '
+  x1 =~ gamma1 * d1 + gamma2 * d2 + gamma3 * d3 + 1 * d4;
+  x2 =~ lambda * d5 + 1 * d6
+  
+  x1 ~~ omega * x1; x1 ~~ omega12 * x2;
+  x2 ~~ omega * x2;
+  
+  
+  d1 ~~ w1 * d1; #d1 ~~ w12 * d2; #d1 ~~ 1 * d3; d1 ~~ 1 * d4; 
+  d2 ~~ w1 * d2; #d2 ~~ 1 * d3; d2 ~~ 1 * d4; 
+  d3 ~~ w1 * d3; #d3 ~~ 1 * d4; 
+  d4 ~~ w1 * d4; 
+  
+  d5 ~~ w2 * d5; #d5 ~~ 1 * d6;
+  d6 ~~ w2 * d6; 
+  
+  # intercepts
+  
+ 
+  
+'
+
+
+elavaan_model3_fit = lavaan(elavaan_model3, m3_data, meanstructure = TRUE)
+
+summary(elavaan_model3_fit)
+
+```
+
